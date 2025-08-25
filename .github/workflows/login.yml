@@ -1,4 +1,4 @@
-name: Lunes Auto Login
+name: Lunes Auto Login(Amos-DE-Node6)
 
 on:
   workflow_dispatch:
