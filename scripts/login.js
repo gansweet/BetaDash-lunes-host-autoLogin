@@ -15,7 +15,7 @@ async function notifyTelegram({ ok, stage, msg, screenshotPath }) {
     }
 
     const text = [
-      `🔔 Lunes 自动登录：${ok ? '✅ 成功' : '❌ 失败'}`,
+      `🔔 Lunes 自动操作：${ok ? '✅ 成功' : '❌ 失败'}`,
       `阶段：${stage}`,
       msg ? `信息：${msg}` : '',
       `时间：${new Date().toISOString()}`
@@ -31,12 +31,12 @@ async function notifyTelegram({ ok, stage, msg, screenshotPath }) {
       })
     });
 
-    // 若有截图，再发一张
+    // 如果有截图，再发图
     if (screenshotPath && fs.existsSync(screenshotPath)) {
       const photoUrl = `https://api.telegram.org/bot${token}/sendPhoto`;
       const form = new FormData();
       form.append('chat_id', chatId);
-      form.append('caption', `Lunes 自动登录截图（${stage}）`);
+      form.append('caption', `Lunes 自动操作截图（${stage}）`);
       form.append('photo', new Blob([fs.readFileSync(screenshotPath)]), 'screenshot.png');
       await fetch(photoUrl, { method: 'POST', body: form });
     }
@@ -69,6 +69,7 @@ async function main() {
     // 1) 打开登录页
     await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 60_000 });
 
+    // 检查人机验证
     const humanCheckText = await page.locator('text=/Verify you are human|需要验证|安全检查|review the security/i').first();
     if (await humanCheckText.count()) {
       const sp = screenshot('01-human-check');
@@ -78,7 +79,7 @@ async function main() {
       return;
     }
 
-    // 2) 输入用户名和密码
+    // 2) 输入用户名密码
     const userInput = page.locator('input[name="username"]');
     const passInput = page.locator('input[name="password"]');
     await userInput.waitFor({ state: 'visible', timeout: 30_000 });
@@ -89,6 +90,7 @@ async function main() {
 
     const loginBtn = page.locator('button[type="submit"]');
     await loginBtn.waitFor({ state: 'visible', timeout: 15_000 });
+
     const spBefore = screenshot('02-before-submit');
     await page.screenshot({ path: spBefore, fullPage: true });
 
@@ -106,21 +108,47 @@ async function main() {
     const stillOnLogin = /\/auth\/login/i.test(url);
 
     if (!stillOnLogin || successHint > 0) {
-      await notifyTelegram({ ok: true, stage: '登录结果', msg: `当前 URL：${url}`, screenshotPath: spAfter });
-      console.log('[OK] 登录成功，进入下一步点击按钮');
+      await notifyTelegram({ ok: true, stage: '登录成功', msg: `当前 URL：${url}`, screenshotPath: spAfter });
 
-      // **新增逻辑：点击进入 Pterodactyl 服务器详情**
+      // **进入服务器详情**
       const serverLink = page.locator('a[href="/server/1141ded6"]');
       await serverLink.waitFor({ state: 'visible', timeout: 20_000 });
       await serverLink.click({ timeout: 10_000 });
 
-      // 等待新页面加载完成
       await page.waitForLoadState('networkidle', { timeout: 30_000 });
-
-      // 截图并推送
       const spServer = screenshot('04-server-page');
       await page.screenshot({ path: spServer, fullPage: true });
-      await notifyTelegram({ ok: true, stage: '进入服务器页面', msg: '已成功打开 Pterodactyl 服务器详情', screenshotPath: spServer });
+      await notifyTelegram({ ok: true, stage: '进入服务器页面', msg: '已成功打开服务器详情', screenshotPath: spServer });
+
+      // **点击 Console 菜单**
+      const consoleMenu = page.locator('a[href="/server/1141ded6"].active');
+      await consoleMenu.waitFor({ state: 'visible', timeout: 15_000 });
+      await consoleMenu.click({ timeout: 5_000 });
+
+      await page.waitForLoadState('networkidle', { timeout: 10_000 });
+
+      // **点击 Restart 按钮**
+      const restartBtn = page.locator('button:has-text("Restart")');
+      await restartBtn.waitFor({ state: 'visible', timeout: 15_000 });
+      await restartBtn.click();
+      await notifyTelegram({ ok: true, stage: '点击 Restart', msg: 'VPS 正在重启' });
+
+      // 等待 VPS 重启（约 10 秒）
+      await page.waitForTimeout(10000);
+
+      // **输入命令并回车**
+      const commandInput = page.locator('input[placeholder="Type a command..."]');
+      await commandInput.waitFor({ state: 'visible', timeout: 20_000 });
+      await commandInput.fill('/home/container/home/container/restart.sh');
+      await commandInput.press('Enter');
+
+      // 等待输出稳定
+      await page.waitForTimeout(5000);
+
+      // 截图并通知
+      const spCommand = screenshot('05-command-executed');
+      await page.screenshot({ path: spCommand, fullPage: true });
+      await notifyTelegram({ ok: true, stage: '命令执行完成', msg: 'restart.sh 已执行', screenshotPath: spCommand });
 
       process.exitCode = 0;
       return;
@@ -132,17 +160,15 @@ async function main() {
     const errorMsg = hasError ? await errorMsgNode.first().innerText().catch(() => '') : '';
     await notifyTelegram({
       ok: false,
-      stage: '登录结果',
+      stage: '登录失败',
       msg: errorMsg ? `疑似失败（${errorMsg}）` : '仍在登录页',
       screenshotPath: spAfter
     });
-    console.log('[FAIL] 登录失败：', url);
     process.exitCode = 1;
   } catch (e) {
     const sp = screenshot('99-error');
     try { await page.screenshot({ path: sp, fullPage: true }); } catch {}
     await notifyTelegram({ ok: false, stage: '异常', msg: e?.message || String(e), screenshotPath: fs.existsSync(sp) ? sp : undefined });
-    console.error('[ERROR]', e);
     process.exitCode = 1;
   } finally {
     await context.close();
