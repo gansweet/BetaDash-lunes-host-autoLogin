@@ -139,7 +139,7 @@ async function main() {
       // **输入命令并回车**
       const commandInput = page.locator('input[placeholder="Type a command..."]');
       await commandInput.waitFor({ state: 'visible', timeout: 20_000 });
-      await commandInput.fill('/home/container/home/container/restart.sh');
+      await commandInput.fill('/home/container/restart.sh');
       await commandInput.press('Enter');
 
       // 等待输出稳定
