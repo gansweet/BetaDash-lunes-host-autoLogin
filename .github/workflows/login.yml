@@ -3,8 +3,8 @@ name: Lunes Auto Login(Amos-Node1-DE)
 on:
   workflow_dispatch:
   schedule:
-    # 每天北京/河内/曼谷时区（UTC+7）03:00 执行一次（按需调整）
-    - cron: "0 20 * * *"  # GitHub 使用 UTC，这里是 UTC 20:00 ≈ 亚洲/曼谷 03:00
+    # 每天北京/河内/曼谷时区（UTC+7）12:00 执行一次（按需调整）
+    - cron: "0 4 * * *"  # GitHub 使用 UTC，这里是 UTC 20:00 ≈ 亚洲/曼谷 12:00
 
 jobs:
   login:
