@@ -111,7 +111,7 @@ async function main() {
       await notifyTelegram({ ok: true, stage: '登录成功', msg: `当前 URL：${url}`, screenshotPath: spAfter });
 
       // **进入服务器详情**
-      const serverLink = page.locator('a[href="/server/1141ded6"]');
+      const serverLink = page.locator('a[href="/server/a9f4ede7"]');
       await serverLink.waitFor({ state: 'visible', timeout: 20_000 });
       await serverLink.click({ timeout: 10_000 });
 
@@ -121,7 +121,7 @@ async function main() {
       await notifyTelegram({ ok: true, stage: '进入服务器页面', msg: '已成功打开服务器详情', screenshotPath: spServer });
 
       // **点击 Console 菜单**
-      const consoleMenu = page.locator('a[href="/server/1141ded6"].active');
+      const consoleMenu = page.locator('a[href="/server/a9f4ede7"].active');
       await consoleMenu.waitFor({ state: 'visible', timeout: 15_000 });
       await consoleMenu.click({ timeout: 5_000 });
 
@@ -139,7 +139,7 @@ async function main() {
       // **输入命令并回车**
       const commandInput = page.locator('input[placeholder="Type a command..."]');
       await commandInput.waitFor({ state: 'visible', timeout: 20_000 });
-      await commandInput.fill('/home/container/restart.sh');
+      await commandInput.fill('working properly');
       await commandInput.press('Enter');
 
       // 等待输出稳定
